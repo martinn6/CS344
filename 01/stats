@@ -1,0 +1,227 @@
+#!/bin/sh
+
+#########################################################################
+# Student: Nick Martin
+# Onid: martinn6
+# Project: 1
+#########################################################################
+
+process=0 #process 1 = rows / process 2 = cols
+charnum=0
+sum=0
+rowid=0
+numcount=0
+
+#check for arguments
+if [ $# -eq 0 ]
+then
+  echo -e "Error: No arguments supplied!\n"
+  exit 1
+fi
+
+#check for 3rd argument
+if [ $# -ge 3 ]
+then
+  echo -e "Bad argument given. Usage: stats {-rows|-cols} [input_file]"
+  exit 1
+fi
+
+#check first argument
+if [ $1 == "-rows" ]
+then
+  process=1  
+elif [ $1 == "-cols" ]
+then
+  process=2
+else
+  echo "Bad argument given. Usage: stats {-rows|-cols} [input_file]"
+  exit 1
+fi
+
+#check file can be loaded
+if [ -f $2 ]
+then
+  inputfile=$2
+else
+  echo -e "Error: filename not found or empty!\n"
+  exit 1
+fi
+
+#run rows process
+if [ $process == 1 ]
+then
+  echo -e "\nStats by Row"
+  echo -e "Average\tMedian"
+  while read charnum
+  do
+    #get row of numbers
+    #remove tabs using tr
+    numline="$(echo $charnum | tr '\t' ' ')"
+
+    #store numbers in $numline into num array 
+    lc=0 #linecount
+    for i in $numline
+    do
+      num[lc]=$i
+      let lc++
+    done
+
+    #finding length of array for 'for loop'	
+    arraylen=${#num[@]}
+
+    #utilize 'selection sort' algorithm to sort array of nums
+    for ((i=0; i<$arraylen; i++))
+    do
+	position=$i
+	for ((j=$i+1; j<$arraylen; j++))
+	do
+		if [ "${num[$position]}" -gt "${num[$j]}" ]
+		then
+			position=$j
+		fi
+        done
+ 
+	if [ $position -ne $i ]
+        then
+		#swap the elements
+		temp=${num[$i]}
+                num[$i]=${num[$position]}
+		num[$position]=$temp
+        fi
+
+    done
+    for ((i=0; i<$arraylen; i++))
+    do
+       #echo ${num[$i]}
+       sum=`expr $sum + ${num[$i]}`
+    done
+    #using printf & bc to format float result to proper "rounded-up" value
+    average=$(printf %0.f $(echo "scale=1;(($sum/$arraylen))" | bc))
+
+    #calculate median based on even or odd elements
+    if !((arraylen%2))
+    then
+        #even elements: take average of middle 2 elements
+	medianelem1=$(echo "($arraylen / 2)" |bc)
+	medianelem2=`expr $medianelem1 - 1`
+	median=$(echo "(${num[$medianelem1]} + ${num[$medianelem2]})/2" |bc)
+    else
+	#odd elements: take middle of elements
+      	medianelem=$(echo "($arraylen / 2)" | bc)
+	median=${num[$medianelem]}
+    fi
+    #echo $medianelem
+    echo -e  "$average\t$median"
+    sum=0
+    numcount=0 
+   done < $inputfile
+elif [ $process -eq 2 ]
+then
+	#read line from file
+	while read line
+	do
+		numline[i]=$line
+		i=`expr $i + 1`
+	done < $inputfile
+
+	#find number of rows
+	arraylen=${#numline[@]}
+	linelength=0
+
+	#find number of columns
+	for i in ${numline[0]}
+	do
+		linelength=`expr $linelength + 1`
+	done
+	#transforming columns to rows
+	for ((i=0; i<$arraylen; i++))
+	do
+		step=0
+    		for j in ${numline[$i]}
+		do
+			#echo "j="$j
+			numarray[step]=$j
+			step=`expr $step + 1`
+		done
+	
+		for ((k=0; k<$linelength; k++))
+		do	
+			numtemp[$k]=${numtemp[$k]}" "${numarray[$k]}
+		done
+		
+	done
+    #echo "linelength="$linelength
+    for ((a=0; a<$linelength;a++))
+    do
+    	#store numbers in $numtemp into num array 
+	#tried to do direct from numtemp but failed due to spaces
+	lc=0 #linecount
+	for i in ${numtemp[$a]}
+    	do
+		#echo "i="$i
+      		num[lc]=$i
+      		let lc++
+    	done
+		
+    	#finding length of array for 'for loop'	
+    	arraylen=${#num[@]}
+    	#utilize 'selection sort' algorithm to sort array of nums
+    	for ((i=0; i<$arraylen; i++))
+    	do
+		position=$i
+		for ((j=$i+1; j<$arraylen; j++))
+		do
+			#echo "num[pos]="${num[$position]}" num[j]="${num[$j]}
+			if [ "${num[$position]}" -gt "${num[$j]}" ]
+			then
+				position=$j
+			fi
+        	done
+ 
+		if [ $position -ne $i ]
+        	then
+			#swap the elements
+			temp=${num[$i]}
+                	num[$i]=${num[$position]}
+			num[$position]=$temp
+        	fi
+
+    	done
+
+	for ((i=0; i<$arraylen; i++))
+	do
+	#	echo ${num[$i]}
+       		sum=`expr $sum + ${num[$i]}`
+	done
+    #using printf and bc to format float result to proper "rounded-up" value
+    average=$average" "$(printf %0.f $(echo "scale=1;(($sum/$arraylen))+0.5" | bc))
+ 
+    #calculate median based on even or odd elements
+    #transform columns to rows for printing
+    if !((arraylen%2))
+    then
+        #even elements: take average of middle 2 elements
+	medianelem1=$(echo "($arraylen / 2)" |bc)
+	medianelem2=`expr $medianelem1 - 1`
+	mediansum=`expr ${num[$medianelem1]} + ${num[$medianelem2]}`
+	median=$median" "$(printf %0.f $(echo "scale=1;(($mediansum/2))+0.5" | bc))
+    else
+	#odd elements: take middle of elements
+      	medianelem=$(echo "($arraylen / 2)" | bc)
+	median=${num[$medianelem]}
+    fi
+    #reseting variables
+    sum=0
+    numcount=0 
+    done
+
+    #final output for columns
+    echo -e "\nAverages:"
+    echo $average | tr " " "\t"
+    echo -e "\nMedians:"
+	echo $median | tr " " "\t"
+fi
+
+
+
+echo -e "\nHave a nice day!\n"
